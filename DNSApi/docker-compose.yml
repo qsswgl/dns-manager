@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  dnsapi:
+    build: .
+    image: 43.138.35.183:5000/dnsapi:latest
+    container_name: dnsapi
+    ports:
+      - "5074:5074"
+      - "5075:5075"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5074;https://+:5075
+      - DnsUpdate__ApiUrl=http://host.docker.internal:5189/qsoft/procedure/dnspod_update
+    volumes:
+      - ./certs:/app/certs
+      - /etc/hosts:/etc/hosts:ro  # 只读挂载hosts文件
+    restart: unless-stopped
+    networks:
+      - dns-network
+
+networks:
+  dns-network:
+    driver: bridge

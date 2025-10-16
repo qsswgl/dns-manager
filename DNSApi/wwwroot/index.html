@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <title>动态域名解析设置</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        #log { height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+        label { display: inline-block; width: 80px; }
+        input { margin-bottom: 10px; }
+    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+    <h2>动态域名解析设置</h2>
+    <label>子域名：</label><input id="subdomain" type="text" placeholder="www 或 api 等"><br>
+    <label>域名：</label><input id="domain" type="text" placeholder="your.domain.com"><br>
+    <label>刷新时间：</label><input id="interval" type="number" min="5" value="60"> 秒<br>
+    <label><input id="enableDnsUpdate" type="checkbox" checked> 启用DNSPod API更新 (连接到 tx.qsgl.net:5190)</label><br>
+    <button id="startBtn">开始</button>
+
+    <hr>
+    <p>
+        <a href="/cert.html" style="text-decoration:none; color:#007cba;">📜 证书管理</a> |
+        <a href="/swagger" style="text-decoration:none; color:#007cba;">📚 API 文档</a>
+    </p>
+
+    <h3>刷新记录（最后10条）</h3>
+    <div id="log"></div>
+    <script>
+        let timer = null;
+        let logs = [];
+
+        // 从地址栏获取 domain 参数，默认 qsgl.net
+        (function initFromQuery() {
+            const params = new URLSearchParams(location.search);
+            const qDomain = (params.get('domain') || 'qsgl.net').trim();
+            const domainInput = document.getElementById('domain');
+            if (!domainInput.value) domainInput.value = qDomain;
+        })();
+
+        document.getElementById('startBtn').onclick = function() {
+            if (timer) clearInterval(timer);
+            const domain = document.getElementById('domain').value.trim();
+            const interval = parseInt(document.getElementById('interval').value, 10) * 1000;
+            if (!domain) { alert('请输入域名'); return; }
+            function refresh() {
+                // 默认 useProxy=false 以绕过代理，获取真实 WAN IP
+                const enableDns = document.getElementById('enableDnsUpdate').checked;
+                const subdomain = document.getElementById('subdomain').value.trim();
+                let url = '/api/updatehosts?domain=' + encodeURIComponent(domain) + '&useProxy=false&enableDnsUpdate=' + enableDns;
+                if (subdomain) {
+                    url += '&subdomain=' + encodeURIComponent(subdomain);
+                }
+                fetch(url)
+                    .then(r => r.json())
+                    .then(res => {
+                        const now = new Date().toLocaleTimeString();
+                        const changeIndicator = res.changed ? '🔄' : '✓';
+                        const ipInfo = res.lastIp && res.lastIp !== res.ip ? 
+                            `IP变更: ${res.lastIp} → ${res.ip}` : 
+                            `IP: ${res.ip}`;
+                        
+                        let logEntry = `${now} ${changeIndicator} ${ipInfo} - ${res.msg}`;
+                        
+                        // 显示DNS API调用状态
+                        if (res.dnsApiCalled !== undefined) {
+                            logEntry += `<br>&nbsp;&nbsp;🔧 DNS更新: ${res.dnsCallStatus || '未知状态'}`;
+                        }
+                        
+                        // 如果有DNS API响应，则显示
+                        if (res.dnsApiResponse && res.dnsApiResponse !== "未调用 DNS API") {
+                            // 截断过长的响应内容
+                            const maxLength = 100;
+                            const responseText = res.dnsApiResponse.length > maxLength ? 
+                                res.dnsApiResponse.substring(0, maxLength) + '...' : 
+                                res.dnsApiResponse;
+                            logEntry += `<br>&nbsp;&nbsp;📡 DNS API响应: ${responseText}`;
+                        }
+                        
+                        logs.unshift(logEntry);
+                        logs = logs.slice(0, 10);
+                        document.getElementById('log').innerHTML = logs.join('<br>');
+                    })
+                    .catch(e => {
+                        const now = new Date().toLocaleTimeString();
+                        logs.unshift(`${now} - 请求失败`);
+                        logs = logs.slice(0, 10);
+                        document.getElementById('log').innerHTML = logs.join('<br>');
+                    });
+            }
+            refresh();
+            timer = setInterval(refresh, interval);
+        };
+
+
+    </script>
+ </body>
+ </html>

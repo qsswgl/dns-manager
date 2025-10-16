@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <title>动态域名解析设置</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        #log { height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+        label { display: inline-block; width: 80px; }
+        input { margin-bottom: 10px; }
+    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+    <h2>动态域名解析设置</h2>
+    <label>子域名：</label><input id="subdomain" type="text" placeholder="www 或 api 等"><br>
+    <label>域名：</label><input id="domain" type="text" placeholder="your.domain.com"><br>
+    <label>刷新时间：</label><input id="interval" type="number" min="5" value="60"> 秒<br>
+    <label><input id="enableDnsUpdate" type="checkbox"> 启用DNSPod API更新 (需要localhost:5189服务)</label><br>
+    <button id="startBtn">开始</button>
+
+    <hr>
+    <h2>申请证书</h2>
+    <label>证书域名：</label><input id="certDomain" type="text" placeholder="例如：qsgl.net 或 sub.qsgl.net"><br>
+    <label>域名服务商：</label><input id="provider" type="text" value="DNSPOD" placeholder="DNSPOD / ALIYUN / CLOUDFLARE"><br>
+    <label>API KEY ID：</label><input id="apiKeyId" type="text" placeholder="API KEY ID 或 CF_Email 或留空(仅 CF_Token)"><br>
+    <label>API 密钥：</label><input id="apiKeySecret" type="password" placeholder="API 密钥 或 CF_Key 或 CF_Token"><br>
+    <label>CF Account ID：</label><input id="cfAccountId" type="text" placeholder="Cloudflare 账号ID（可选）"><br>
+    <button id="applyCertBtn">申请证书</button>
+    <div id="certLog" style="margin-top:10px;color:#333;"></div>
+
+    <h3>刷新记录（最后10条）</h3>
+    <div id="log"></div>
+    <script>
+        let timer = null;
+        let logs = [];
+
+        // 从地址栏获取 domain 参数，默认 qsgl.net
+        (function initFromQuery() {
+            const params = new URLSearchParams(location.search);
+            const qDomain = (params.get('domain') || 'qsgl.net').trim();
+            const domainInput = document.getElementById('domain');
+            const certDomainInput = document.getElementById('certDomain');
+            if (!domainInput.value) domainInput.value = qDomain;
+            if (!certDomainInput.value) certDomainInput.value = qDomain;
+        })();
+
+        function isApexDomain(d) {
+            // 简单判断一级域：只包含一个点，且不以点开头/结尾
+            if (!d) return false;
+            const s = d.trim().toLowerCase();
+            if (s.startsWith('.') || s.endsWith('.')) return false;
+            const first = s.indexOf('.');
+            const last = s.lastIndexOf('.');
+            return first > 0 && first === last && last < s.length - 1;
+        }
+
+        document.getElementById('startBtn').onclick = function() {
+            if (timer) clearInterval(timer);
+            const domain = document.getElementById('domain').value.trim();
+            const interval = parseInt(document.getElementById('interval').value, 10) * 1000;
+            if (!domain) { alert('请输入域名'); return; }
+            function refresh() {
+                // 默认 useProxy=false 以绕过代理，获取真实 WAN IP
+                const enableDns = document.getElementById('enableDnsUpdate').checked;
+                const subdomain = document.getElementById('subdomain').value.trim();
+                let url = '/api/updatehosts?domain=' + encodeURIComponent(domain) + '&useProxy=false&enableDnsUpdate=' + enableDns;
+                if (subdomain) {
+                    url += '&subdomain=' + encodeURIComponent(subdomain);
+                }
+                fetch(url)
+                    .then(r => r.json())
+                    .then(res => {
+                        const now = new Date().toLocaleTimeString();
+                        const changeIndicator = res.changed ? '🔄' : '✓';
+                        const ipInfo = res.lastIp && res.lastIp !== res.ip ? 
+                            `IP变更: ${res.lastIp} → ${res.ip}` : 
+                            `IP: ${res.ip}`;
+                        
+                        let logEntry = `${now} ${changeIndicator} ${ipInfo} - ${res.msg}`;
+                        
+                        // 如果有DNS API响应，则显示
+                        if (res.dnsApiResponse) {
+                            logEntry += `<br>&nbsp;&nbsp;📡 DNS API响应: ${res.dnsApiResponse}`;
+                        }
+                        
+                        logs.unshift(logEntry);
+                        logs = logs.slice(0, 10);
+                        document.getElementById('log').innerHTML = logs.join('<br>');
+                    })
+                    .catch(e => {
+                        const now = new Date().toLocaleTimeString();
+                        logs.unshift(`${now} - 请求失败`);
+                        logs = logs.slice(0, 10);
+                        document.getElementById('log').innerHTML = logs.join('<br>');
+                    });
+            }
+            refresh();
+            timer = setInterval(refresh, interval);
+        };
+
+        document.getElementById('applyCertBtn').onclick = function() {
+            const d = (document.getElementById('certDomain').value || 'qsgl.net').trim();
+            const provider = (document.getElementById('provider').value || 'DNSPOD').trim();
+            const apiKeyId = (document.getElementById('apiKeyId').value || '').trim();
+            const apiKeySecret = (document.getElementById('apiKeySecret').value || '').trim();
+            const cfAccountId = (document.getElementById('cfAccountId').value || '').trim();
+            const wantWildcard = isApexDomain(d);
+
+            const body = { domain: d, provider, apiKeyId, apiKeySecret };
+            if (cfAccountId) body.cfAccountId = cfAccountId;
+
+            fetch('/api/request-cert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            })
+            .then(r => r.json())
+            .then(res => {
+                const now = new Date().toLocaleTimeString();
+                const sub = res.subject || (wantWildcard ? ('*.' + d) : d);
+                document.getElementById('certLog').innerText = `${now} - ${res.msg} - 申请主题: ${sub}`;
+            })
+            .catch(err => {
+                const now = new Date().toLocaleTimeString();
+                document.getElementById('certLog').innerText = `${now} - 申请失败: ${err}`;
+            });
+        };
+    </script>
+ </body>
+ </html>

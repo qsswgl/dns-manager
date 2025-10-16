@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  dnsapi-ssl:
+    image: 43.138.35.183:5000/dnsapi:ssl
+    container_name: dnsapi-ssl
+    ports:
+      - "5074:5074"  # HTTP port
+      - "5075:5075"  # HTTPS port (with qsgl.net certificate)
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5074;https://+:5075
+    restart: unless-stopped
+    networks:
+      - dnsapi_network
+
+networks:
+  dnsapi_network:
+    driver: bridge

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <title>SSL证书管理</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px; 
+            background-color: #f8f9fa; 
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            margin: 0 0 10px 0;
+        }
+        
+        .nav-links {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .nav-links a {
+            text-decoration: none;
+            color: #007cba;
+            margin: 0 15px;
+            padding: 8px 16px;
+            border: 1px solid #007cba;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .nav-links a:hover {
+            background-color: #007cba;
+            color: white;
+        }
+        
+        .form-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .form-section h3 {
+            color: #495057;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label { 
+            display: block;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        input[type="text"], input[type="password"], select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        
+        input[type="text"]:focus, input[type="password"]:focus, select:focus {
+            border-color: #007cba;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 123, 186, 0.25);
+        }
+        
+        .btn {
+            background-color: #007cba;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .log-area {
+            background: #212529;
+            color: #28a745;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            min-height: 100px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box h4 {
+            color: #0c5460;
+            margin-top: 0;
+        }
+        
+        .provider-config {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+        
+        .provider-config.active {
+            display: block;
+        }
+        
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        @media (max-width: 600px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                margin: 20px;
+                padding: 20px;
+            }
+        }
+    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 SSL证书管理</h1>
+            <p>自动申请和部署 Let's Encrypt 免费SSL证书</p>
+        </div>
+        
+        <div class="nav-links">
+            <a href="/">🏠 返回首页</a>
+            <a href="/swagger">📚 API 文档</a>
+            <a href="/api/health">🔍 系统状态</a>
+        </div>
+
+        <div class="info-box">
+            <h4>📋 使用说明</h4>
+            <ul>
+                <li><strong>一级域名</strong> (如 qsgl.net) → 自动申请泛域名证书 <code>*.qsgl.net</code></li>
+                <li><strong>子域名</strong> (如 api.qsgl.net) → 申请单域名证书</li>
+                <li>支持 DNSPod、阿里云DNS、Cloudflare 等域名服务商</li>
+                <li>证书申请完成后会自动下载并保存到服务器</li>
+            </ul>
+        </div>
+
+        <div class="form-section">
+            <h3>🎯 证书申请</h3>
+            
+            <div class="form-group">
+                <label>证书域名：</label>
+                <input id="certDomain" type="text" placeholder="例如：qsgl.net 或 api.qsgl.net">
+                <small style="color: #6c757d;">输入一级域名将申请泛域名证书</small>
+            </div>
+            
+            <div class="form-group">
+                <label>域名服务商：</label>
+                <select id="provider">
+                    <option value="DNSPOD">DNSPod (腾讯云)</option>
+                    <option value="ALIYUN">阿里云 DNS</option>
+                    <option value="CLOUDFLARE">Cloudflare</option>
+                </select>
+            </div>
+
+            <!-- DNSPod 配置 -->
+            <div id="config-DNSPOD" class="provider-config active">
+                <h4>🔧 DNSPod API 配置</h4>
+                <div class="info-box" style="background: #d4edda; border-color: #c3e6cb;">
+                    <p style="margin: 0; color: #155724;">
+                        ✅ <strong>DNSPod API 配置已预设</strong><br>
+                        系统将自动使用服务器配置文件中的 DNSPod API 密钥，无需手动输入。
+                    </p>
+                </div>
+            </div>
+
+            <!-- 阿里云 配置 -->
+            <div id="config-ALIYUN" class="provider-config">
+                <h4>🔧 阿里云 DNS API 配置</h4>
+                <div class="two-column">
+                    <div class="form-group">
+                        <label>Access Key ID：</label>
+                        <input id="aliyun-keyid" type="text" placeholder="阿里云 Access Key ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Access Key Secret：</label>
+                        <input id="aliyun-secret" type="password" placeholder="阿里云 Access Key Secret">
+                    </div>
+                </div>
+                <small style="color: #6c757d;">
+                    在阿里云控制台 → AccessKey 管理中获取，建议使用RAM子账号
+                </small>
+            </div>
+
+            <!-- Cloudflare 配置 -->
+            <div id="config-CLOUDFLARE" class="provider-config">
+                <h4>🔧 Cloudflare API 配置</h4>
+                <div class="form-group">
+                    <label>认证方式：</label>
+                    <select id="cf-auth-type">
+                        <option value="token">API Token (推荐)</option>
+                        <option value="key">Global API Key</option>
+                    </select>
+                </div>
+                
+                <div id="cf-token-config">
+                    <div class="form-group">
+                        <label>API Token：</label>
+                        <input id="cf-token" type="password" placeholder="Cloudflare API Token">
+                        <small style="color: #6c757d;">
+                            在 Cloudflare → My Profile → API Tokens 中创建，需要 Zone:Zone:Read, Zone:DNS:Edit 权限
+                        </small>
+                    </div>
+                </div>
+                
+                <div id="cf-key-config" style="display: none;">
+                    <div class="two-column">
+                        <div class="form-group">
+                            <label>邮箱地址：</label>
+                            <input id="cf-email" type="text" placeholder="Cloudflare 账号邮箱">
+                        </div>
+                        <div class="form-group">
+                            <label>Global API Key：</label>
+                            <input id="cf-key" type="password" placeholder="Cloudflare Global API Key">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>账号 ID (可选)：</label>
+                    <input id="cf-account-id" type="text" placeholder="Cloudflare 账号 ID">
+                    <small style="color: #6c757d;">在 Cloudflare 右侧边栏中查看</small>
+                </div>
+            </div>
+
+            <button id="applyCertBtn" class="btn">🚀 申请证书</button>
+        </div>
+
+        <div class="form-section">
+            <h3>📊 操作日志</h3>
+            <div id="certLog" class="log-area">等待操作...</div>
+        </div>
+    </div>
+
+    <script>
+        // 从地址栏获取 domain 参数
+        (function initFromQuery() {
+            const params = new URLSearchParams(location.search);
+            const qDomain = (params.get('domain') || 'qsgl.net').trim();
+            const certDomainInput = document.getElementById('certDomain');
+            if (!certDomainInput.value) certDomainInput.value = qDomain;
+        })();
+
+        // 判断是否为一级域名
+        function isApexDomain(d) {
+            if (!d) return false;
+            const s = d.trim().toLowerCase();
+            if (s.startsWith('.') || s.endsWith('.')) return false;
+            const first = s.indexOf('.');
+            const last = s.lastIndexOf('.');
+            return first > 0 && first === last && last < s.length - 1;
+        }
+
+        // 服务商切换
+        document.getElementById('provider').addEventListener('change', function() {
+            // 隐藏所有配置区域
+            document.querySelectorAll('.provider-config').forEach(el => el.classList.remove('active'));
+            // 显示选中的配置区域
+            const selected = this.value;
+            document.getElementById('config-' + selected).classList.add('active');
+        });
+
+        // Cloudflare 认证方式切换
+        document.getElementById('cf-auth-type').addEventListener('change', function() {
+            const tokenConfig = document.getElementById('cf-token-config');
+            const keyConfig = document.getElementById('cf-key-config');
+            
+            if (this.value === 'token') {
+                tokenConfig.style.display = 'block';
+                keyConfig.style.display = 'none';
+            } else {
+                tokenConfig.style.display = 'none';
+                keyConfig.style.display = 'block';
+            }
+        });
+
+        // 添加日志
+        function addLog(message, type = 'info') {
+            const now = new Date().toLocaleTimeString();
+            const logArea = document.getElementById('certLog');
+            const logEntry = `[${now}] ${message}\n`;
+            
+            if (logArea.textContent === '等待操作...') {
+                logArea.textContent = logEntry;
+            } else {
+                logArea.textContent += logEntry;
+            }
+            
+            // 滚动到底部
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // 证书申请
+        document.getElementById('applyCertBtn').onclick = function() {
+            const btn = this;
+            const domain = document.getElementById('certDomain').value.trim();
+            const provider = document.getElementById('provider').value;
+            
+            if (!domain) {
+                alert('请输入证书域名');
+                return;
+            }
+
+            // 禁用按钮
+            btn.disabled = true;
+            btn.textContent = '🔄 申请中...';
+            
+            // 清空日志
+            document.getElementById('certLog').textContent = '';
+            
+            addLog(`开始申请证书: ${domain}`);
+            addLog(`域名服务商: ${provider}`);
+            
+            const wantWildcard = isApexDomain(domain);
+            if (wantWildcard) {
+                addLog(`检测到一级域名，将申请泛域名证书: *.${domain}`);
+            } else {
+                addLog(`检测到子域名，将申请单域名证书: ${domain}`);
+            }
+
+            // 构建请求体
+            const body = { domain: domain, provider: provider };
+
+            // 根据服务商添加认证信息
+            if (provider === 'DNSPOD') {
+                // DNSPod 使用服务器配置文件中的预设值，无需传递参数
+                addLog('使用服务器预设的 DNSPod API 配置');
+            } else if (provider === 'ALIYUN') {
+                body.apiKeyId = document.getElementById('aliyun-keyid').value.trim();
+                body.apiKeySecret = document.getElementById('aliyun-secret').value.trim();
+                
+                if (!body.apiKeyId || !body.apiKeySecret) {
+                    addLog('❌ 错误: 请填写阿里云 Access Key ID 和 Secret', 'error');
+                    btn.disabled = false;
+                    btn.textContent = '🚀 申请证书';
+                    return;
+                }
+            } else if (provider === 'CLOUDFLARE') {
+                const authType = document.getElementById('cf-auth-type').value;
+                const cfAccountId = document.getElementById('cf-account-id').value.trim();
+                
+                if (authType === 'token') {
+                    body.apiKeySecret = document.getElementById('cf-token').value.trim();
+                    if (!body.apiKeySecret) {
+                        addLog('❌ 错误: 请填写 Cloudflare API Token', 'error');
+                        btn.disabled = false;
+                        btn.textContent = '🚀 申请证书';
+                        return;
+                    }
+                } else {
+                    body.apiKeyId = document.getElementById('cf-email').value.trim();
+                    body.apiKeySecret = document.getElementById('cf-key').value.trim();
+                    if (!body.apiKeyId || !body.apiKeySecret) {
+                        addLog('❌ 错误: 请填写 Cloudflare 邮箱和 Global API Key', 'error');
+                        btn.disabled = false;
+                        btn.textContent = '🚀 申请证书';
+                        return;
+                    }
+                }
+                
+                if (cfAccountId) {
+                    body.cfAccountId = cfAccountId;
+                }
+            }
+
+            addLog('📤 发送申请请求...');
+
+            // 发送请求
+            fetch('/api/request-cert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            })
+            .then(response => response.json())
+            .then(res => {
+                const subject = res.subject || (wantWildcard ? `*.${domain}` : domain);
+                
+                if (res.success || res.msg.includes('成功')) {
+                    addLog(`✅ 证书申请成功!`);
+                    addLog(`📋 证书主题: ${subject}`);
+                    addLog(`📝 详细信息: ${res.msg}`);
+                } else {
+                    addLog(`❌ 证书申请失败: ${res.msg}`, 'error');
+                }
+            })
+            .catch(err => {
+                addLog(`💥 请求异常: ${err.message}`, 'error');
+            })
+            .finally(() => {
+                // 恢复按钮
+                btn.disabled = false;
+                btn.textContent = '🚀 申请证书';
+                addLog('--- 操作完成 ---');
+            });
+        };
+    </script>
+</body>
+</html>

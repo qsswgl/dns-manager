@@ -1,0 +1,14 @@
+[Unit]
+Description=DNS API Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/dnsapi
+ExecStart=/opt/dnsapi/DNSApi
+Environment=ASPNETCORE_URLS=http://0.0.0.0:5074;https://0.0.0.0:5075
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

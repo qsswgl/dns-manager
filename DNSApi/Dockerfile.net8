@@ -1,0 +1,37 @@
+# .NET 8 多阶段构建 Dockerfile
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+WORKDIR /app
+EXPOSE 5074 5075
+
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY ["DNSApi.csproj", "."]
+RUN dotnet restore "DNSApi.csproj"
+COPY . .
+WORKDIR "/src"
+RUN dotnet build "DNSApi.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "DNSApi.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+
+# 创建证书目录
+RUN mkdir -p /app/certificates /app/wwwroot
+
+# 复制证书和静态文件（如果存在）
+COPY certificates/ /app/certificates/
+COPY wwwroot/ /app/wwwroot/
+
+# 设置环境变量
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_URLS=http://+:5074;https://+:5075
+ENV DOTNET_RUNNING_IN_CONTAINER=true
+
+# 设置权限
+RUN chmod 755 /app/certificates 2>/dev/null || true
+RUN chmod 644 /app/certificates/* 2>/dev/null || true
+
+ENTRYPOINT ["dotnet", "DNSApi.dll"]
