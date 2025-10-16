@@ -12,14 +12,11 @@ namespace DNSUpdaterTray
         private ContextMenuStrip trayMenu;
         private System.Windows.Forms.Timer updateTimer;
         private HttpClient httpClient;
-        private IConfiguration configuration;
+        private ConfigurationManager configManager;
+        private IconManager iconManager;
         
         // DNS配置
-        private string apiUrl;
-        private string subDomain;
-        private string domain;
-        private int updateInterval;
-        private bool enableUpdate;
+        private DnsSettings dnsSettings;
         
         // 状态信息
         private string lastUpdateTime = "未更新";
@@ -29,9 +26,11 @@ namespace DNSUpdaterTray
         public MainForm()
         {
             InitializeComponent();
+            configManager = new ConfigurationManager();
+            iconManager = new IconManager();
             LoadConfiguration();
-            InitializeTrayIcon();
             InitializeHttpClient();
+            _ = InitializeTrayIconAsync(); // 异步初始化托盘图标
             InitializeTimer();
             
             // 隐藏主窗口
@@ -42,26 +41,26 @@ namespace DNSUpdaterTray
 
         private void LoadConfiguration()
         {
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(Application.StartupPath)
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-            
-            configuration = builder.Build();
-            
-            // 读取DNS配置
-            apiUrl = configuration["DnsSettings:ApiUrl"] ?? "https://tx.qsgl.net:5075/api/updatehosts";
-            subDomain = configuration["DnsSettings:SubDomain"] ?? "3950";
-            domain = configuration["DnsSettings:Domain"] ?? "qsgl.net";
-            updateInterval = int.Parse(configuration["DnsSettings:UpdateInterval"] ?? "60") * 1000; // 转换为毫秒
-            enableUpdate = bool.Parse(configuration["DnsSettings:EnableUpdate"] ?? "true");
+            // 使用新的配置管理器加载配置
+            dnsSettings = configManager.LoadConfiguration();
         }
 
-        private void InitializeTrayIcon()
+        private async Task InitializeTrayIconAsync()
         {
             // 创建托盘图标
             trayIcon = new NotifyIcon();
             trayIcon.Text = "DNS自动更新器";
-            trayIcon.Icon = SystemIcons.Application; // 使用系统默认图标
+            
+            // 异步加载自定义图标
+            try
+            {
+                trayIcon.Icon = await iconManager.GetTrayIconAsync();
+            }
+            catch
+            {
+                // 如果加载失败，使用系统默认图标
+                trayIcon.Icon = iconManager.GetDefaultIcon();
+            }
             
             // 创建右键菜单
             trayMenu = new ContextMenuStrip();
@@ -74,15 +73,19 @@ namespace DNSUpdaterTray
             trayMenu.Items.Add(new ToolStripSeparator());
             
             var openWebItem = new ToolStripMenuItem("打开DNS管理");
-            openWebItem.Click += (s, e) => 
+            openWebItem.Click += async (s, e) => 
             {
                 try
                 {
+                    var webUrl = "https://tx.qsgl.net:5075";
                     Process.Start(new ProcessStartInfo
                     {
-                        FileName = "https://tx.qsgl.net:5075",
+                        FileName = webUrl,
                         UseShellExecute = true
                     });
+                    
+                    // 保存最后访问的网页URL
+                    await SaveLastWebPageAsync(webUrl);
                 }
                 catch (Exception ex)
                 {
@@ -129,10 +132,10 @@ namespace DNSUpdaterTray
 
         private void InitializeTimer()
         {
-            if (enableUpdate && updateInterval > 0)
+            if (dnsSettings.EnableUpdate && dnsSettings.UpdateInterval > 0)
             {
                 updateTimer = new System.Windows.Forms.Timer();
-                updateTimer.Interval = updateInterval;
+                updateTimer.Interval = dnsSettings.UpdateInterval * 1000; // 转换为毫秒
                 updateTimer.Tick += async (s, e) => await CheckAndUpdateDNS();
                 updateTimer.Start();
                 
@@ -151,17 +154,17 @@ namespace DNSUpdaterTray
                 // 准备请求数据
                 var requestData = new
                 {
-                    subDomain = subDomain,
-                    domain = domain,
-                    refreshTime = 60,
-                    enableDnsPod = enableUpdate
+                    subDomain = dnsSettings.SubDomain,
+                    domain = dnsSettings.Domain,
+                    refreshTime = dnsSettings.UpdateInterval,
+                    enableDnsPod = dnsSettings.EnableUpdate
                 };
                 
                 var json = JsonSerializer.Serialize(requestData);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
                 // 发送POST请求
-                var response = await httpClient.PostAsync(apiUrl, content);
+                var response = await httpClient.PostAsync(dnsSettings.ApiUrl, content);
                 
                 if (response.IsSuccessStatusCode)
                 {
@@ -201,7 +204,7 @@ namespace DNSUpdaterTray
         private void UpdateTrayTooltip()
         {
             var tooltip = $"DNS自动更新器\n" +
-                         $"域名: {subDomain}.{domain}\n" +
+                         $"域名: {dnsSettings.SubDomain}.{dnsSettings.Domain}\n" +
                          $"当前IP: {currentIp}\n" +
                          $"最后更新: {lastUpdateTime}\n" +
                          $"状态: {lastStatus}";
@@ -215,29 +218,57 @@ namespace DNSUpdaterTray
 
         private void ShowStatus()
         {
+            var userConfigPath = configManager.GetUserConfigPath();
             var statusMessage = $"DNS自动更新器状态信息\n\n" +
-                              $"配置域名: {subDomain}.{domain}\n" +
-                              $"API地址: {apiUrl}\n" +
-                              $"更新间隔: {updateInterval / 1000}秒\n" +
-                              $"自动更新: {(enableUpdate ? "启用" : "禁用")}\n\n" +
+                              $"配置域名: {dnsSettings.SubDomain}.{dnsSettings.Domain}\n" +
+                              $"API地址: {dnsSettings.ApiUrl}\n" +
+                              $"更新间隔: {dnsSettings.UpdateInterval}秒\n" +
+                              $"自动更新: {(dnsSettings.EnableUpdate ? "启用" : "禁用")}\n\n" +
                               $"当前IP: {currentIp}\n" +
                               $"最后更新: {lastUpdateTime}\n" +
-                              $"运行状态: {lastStatus}";
+                              $"运行状态: {lastStatus}\n\n" +
+                              $"用户配置: {userConfigPath}";
             
             MessageBox.Show(statusMessage, "DNS更新器状态", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void ShowSettings()
         {
-            var settingsMessage = $"配置文件位置:\n{Path.Combine(Application.StartupPath, "appsettings.json")}\n\n" +
-                                 $"当前配置:\n" +
-                                 $"• 子域名: {subDomain}\n" +
-                                 $"• 域名: {domain}\n" +
-                                 $"• 更新间隔: {updateInterval / 1000}秒\n" +
-                                 $"• 自动更新: {(enableUpdate ? "启用" : "禁用")}\n\n" +
-                                 $"修改配置后需要重启程序生效。";
-            
-            MessageBox.Show(settingsMessage, "设置", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            try
+            {
+                var userConfigPath = configManager.GetUserConfigPath();
+                var settingsForm = new SettingsForm(dnsSettings, configManager);
+                
+                if (settingsForm.ShowDialog() == DialogResult.OK)
+                {
+                    // 重新加载配置
+                    LoadConfiguration();
+                    
+                    // 重启定时器以应用新的时间间隔
+                    updateTimer?.Stop();
+                    InitializeTimer();
+                    
+                    MessageBox.Show("配置已保存并应用！", "设置", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"打开设置窗口失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task SaveLastWebPageAsync(string webUrl)
+        {
+            try
+            {
+                var userSettings = configManager.LoadUserConfiguration() ?? new UserDnsSettings();
+                userSettings.LastUsedWebPage = webUrl;
+                configManager.SaveUserConfiguration(userSettings);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"保存最后访问网页失败: {ex.Message}");
+            }
         }
 
         protected override void SetVisibleCore(bool value)
@@ -255,6 +286,7 @@ namespace DNSUpdaterTray
                 httpClient?.Dispose();
                 trayIcon?.Dispose();
                 trayMenu?.Dispose();
+                iconManager?.Dispose();
             }
             base.Dispose(disposing);
         }
