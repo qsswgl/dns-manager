@@ -1,20 +1,22 @@
-# 超级简化的 Dockerfile - 只使用 HTTP
+# 证书管理服务 Dockerfile
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
+
+# 安装必要的工具（acme.sh 需要）
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# 只暴露 HTTP 端口
-EXPOSE 5074
+# 暴露端口
+EXPOSE 5074 5075
 
 # 复制发布的应用
 COPY publish/ .
 
-# 设置环境变量 - 只使用 HTTP
+# 设置环境变量
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:5074
-
-# 设置权限
-RUN chmod +x ./DNSApi
+ENV ASPNETCORE_HTTP_PORTS=
+ENV ASPNETCORE_HTTPS_PORTS=
 
 # 启动应用
-ENTRYPOINT ["./DNSApi"]
+ENTRYPOINT ["dotnet", "DNSApi.dll"]

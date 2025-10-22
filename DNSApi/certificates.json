@@ -1,0 +1,67 @@
+{
+  "$schema": "./certificates-schema.json",
+  "managedCertificates": [
+    {
+      "domain": "qsgl.net",
+      "isWildcard": true,
+      "provider": "DNSPOD",
+      "autoRenew": true,
+      "renewDaysBefore": 30,
+      "deployments": [
+        {
+          "name": "Envoy Proxy (www.qsgl.cn)",
+          "type": "ssh",
+          "host": "123.57.93.200",
+          "username": "root",
+          "sshKeyPath": "/root/.ssh/id_rsa_qsgl_nopass",
+          "remoteCertPath": "/etc/envoy/certs/qsgl.net.crt",
+          "remoteKeyPath": "/etc/envoy/certs/qsgl.net.key",
+          "postDeployCommand": "docker restart envoy",
+          "enabled": true
+        },
+        {
+          "name": "API Server (tx.qsgl.net)",
+          "type": "docker-volume",
+          "containerName": "dnsapi",
+          "volumePath": "/opt/shared-certs",
+          "certFileName": "qsgl.net.crt",
+          "keyFileName": "qsgl.net.key",
+          "postDeployCommand": "docker restart dnsapi",
+          "enabled": true
+        }
+      ],
+      "notifications": {
+        "email": [],
+        "webhook": ""
+      }
+    },
+    {
+      "domain": "tx.qsgl.net",
+      "isWildcard": false,
+      "provider": "DNSPOD",
+      "autoRenew": true,
+      "renewDaysBefore": 30,
+      "deployments": [
+        {
+          "name": "TX Server HTTPS",
+          "type": "local-copy",
+          "localCertPath": "/opt/shared-certs/tx.qsgl.net.crt",
+          "localKeyPath": "/opt/shared-certs/tx.qsgl.net.key",
+          "postDeployCommand": "systemctl reload nginx",
+          "enabled": true
+        }
+      ],
+      "notifications": {
+        "email": [],
+        "webhook": ""
+      }
+    }
+  ],
+  "globalSettings": {
+    "checkInterval": "0 2 * * *",
+    "defaultProvider": "DNSPOD",
+    "defaultRenewDaysBefore": 30,
+    "logRetentionDays": 90,
+    "enableNotifications": true
+  }
+}

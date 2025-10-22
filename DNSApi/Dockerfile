@@ -16,12 +16,11 @@ COPY publish/ .
 # 复制证书文件
 COPY certificates/qsgl.net.pfx /app/certificates/
 
-# 设置环境变量
+# 设置环境变量（不覆盖 URLS，监听由应用内 Kestrel 配置完成）
 ENV ASPNETCORE_ENVIRONMENT=Production
-ENV ASPNETCORE_URLS=http://+:5074;https://+:5075
 
-# 设置权限
-RUN chmod +x ./DNSApi && chmod 644 /app/certificates/qsgl.net.pfx
+# 设置权限（证书可选存在，若存在则设为 644）
+RUN if [ -f /app/certificates/qsgl.net.pfx ]; then chmod 644 /app/certificates/qsgl.net.pfx; fi
 
-# 启动应用
-ENTRYPOINT ["./DNSApi"]
+# 启动应用（使用框架依赖 DLL 运行）
+ENTRYPOINT ["dotnet", "DNSApi.dll"]

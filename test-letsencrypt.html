@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Let's Encrypt P-256 证书测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .success {
+            background: rgba(76, 175, 80, 0.2);
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .info {
+            background: rgba(33, 150, 243, 0.2);
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Let's Encrypt P-256 证书测试</h1>
+        
+        <div class="success">
+            <h3>✅ HTTPS 已启用</h3>
+            <p>此页面正在使用 Let's Encrypt 颁发的 P-256 ECDSA 证书</p>
+        </div>
+
+        <div class="info">
+            <h3>📋 证书信息</h3>
+            <ul>
+                <li><strong>颁发者</strong>: Let's Encrypt (E7)</li>
+                <li><strong>域名</strong>: *.qsgl.net (泛域名)</li>
+                <li><strong>算法</strong>: ECDSA P-256 (256-bit)</li>
+                <li><strong>有效期</strong>: 90 天（自动续期）</li>
+            </ul>
+        </div>
+
+        <div class="info">
+            <h3>🔗 API 端点</h3>
+            <ul>
+                <li><strong>HTTP</strong>: <a href="http://tx.qsgl.net:5074/api/health" style="color: #fff">http://tx.qsgl.net:5074</a></li>
+                <li><strong>HTTPS</strong>: <a href="https://tx.qsgl.net:5075/api/health" style="color: #fff">https://tx.qsgl.net:5075</a></li>
+                <li><strong>API 文档</strong>: <a href="https://tx.qsgl.net:5075/swagger" style="color: #fff">https://tx.qsgl.net:5075/swagger</a></li>
+            </ul>
+        </div>
+
+        <div class="info">
+            <h3>🧪 测试 API</h3>
+            <button onclick="testHttp()">测试 HTTP</button>
+            <button onclick="testHttps()">测试 HTTPS</button>
+            <button onclick="requestCert()">申请 P-256 证书</button>
+            <div id="result"></div>
+        </div>
+
+        <div class="info">
+            <h3>💻 命令行测试</h3>
+            <div class="code">
+# 健康检查<br>
+curl https://tx.qsgl.net:5075/api/health<br>
+<br>
+# 申请 P-256 证书<br>
+curl -X POST https://tx.qsgl.net:5075/api/request-cert \<br>
+  -H "Content-Type: application/x-www-form-urlencoded" \<br>
+  -d "domain=example.com&provider=DNSPOD"<br>
+<br>
+# 验证证书<br>
+openssl s_client -connect tx.qsgl.net:5075 -servername tx.qsgl.net
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const resultDiv = document.getElementById('result');
+
+        async function testHttp() {
+            try {
+                const response = await fetch('http://tx.qsgl.net:5074/api/health');
+                const data = await response.json();
+                showResult('✅ HTTP 连接成功', data);
+            } catch (error) {
+                showResult('❌ HTTP 连接失败', error.message);
+            }
+        }
+
+        async function testHttps() {
+            try {
+                const response = await fetch('https://tx.qsgl.net:5075/api/health');
+                const data = await response.json();
+                showResult('✅ HTTPS 连接成功 (Let\'s Encrypt 证书)', data);
+            } catch (error) {
+                showResult('❌ HTTPS 连接失败', error.message);
+            }
+        }
+
+        async function requestCert() {
+            try {
+                const response = await fetch('https://tx.qsgl.net:5075/api/request-cert', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'domain=test.example.com&provider=DNSPOD'
+                });
+                const data = await response.json();
+                
+                if (data.cert && data.key) {
+                    // 检测密钥类型
+                    const keyType = data.key.includes('EC PRIVATE KEY') ? 'ECDSA P-256 ✅' : 
+                                   data.key.includes('RSA PRIVATE KEY') ? 'RSA' : 'Unknown';
+                    
+                    showResult(`✅ P-256 证书生成成功`, {
+                        keyType: keyType,
+                        certLength: data.cert.length + ' bytes',
+                        keyLength: data.key.length + ' bytes'
+                    });
+                } else {
+                    showResult('❌ 证书生成失败', data);
+                }
+            } catch (error) {
+                showResult('❌ 请求失败', error.message);
+            }
+        }
+
+        function showResult(title, data) {
+            resultDiv.innerHTML = `
+                <div class="success" style="margin-top: 15px;">
+                    <h4>${title}</h4>
+                    <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; overflow-x: auto;">
+${JSON.stringify(data, null, 2)}
+                    </pre>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

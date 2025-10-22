@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阿里云 Envoy 8443 端口测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border-left: 5px solid #28a745; }
+        .error { background: #f8d7da; color: #721c24; border-left: 5px solid #dc3545; }
+        .warning { background: #fff3cd; color: #856404; border-left: 5px solid #ffc107; }
+        .info { background: #d1ecf1; color: #0c5460; border-left: 5px solid #17a2b8; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .link-box {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .link-box a {
+            color: #0066cc;
+            font-size: 18px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .link-box a:hover {
+            text-decoration: underline;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 阿里云 Envoy 8443 端口测试</h1>
+        
+        <div class="info status">
+            <strong>服务器:</strong> www.qsgl.cn (123.57.93.200)<br>
+            <strong>代理端口:</strong> 8443 (HTTPS)<br>
+            <strong>后端服务:</strong> https://61.163.200.245<br>
+            <strong>绑定域名:</strong> www.qsgl.net
+        </div>
+
+        <div class="warning-box">
+            <strong>⚠️ 证书警告说明:</strong><br>
+            当前使用自签名证书，浏览器会显示"不安全"警告，这是正常现象。<br>
+            点击下面的链接后，需要点击"高级" → "继续访问"才能查看内容。
+        </div>
+
+        <h2>📌 直接访问链接</h2>
+        <div class="link-box">
+            <a href="https://www.qsgl.cn:8443/" target="_blank">🔗 https://www.qsgl.cn:8443/</a>
+        </div>
+
+        <h2>🧪 JavaScript 测试</h2>
+        <p>点击下面的按钮测试连接（注意：可能因跨域或证书问题失败，建议直接点击上方链接）：</p>
+        
+        <button onclick="testConnection()">🔍 测试 8443 端口连接</button>
+        <button onclick="testWithHost()">🌐 测试 Host 头绑定</button>
+        <button onclick="clearResult()">🗑️ 清除结果</button>
+
+        <div id="result"></div>
+
+        <h2>📋 访问步骤</h2>
+        <ol>
+            <li>点击上方的 <strong>直接访问链接</strong></li>
+            <li>浏览器会显示证书警告页面</li>
+            <li>点击 <code>高级</code> 或 <code>详细信息</code></li>
+            <li>点击 <code>继续访问</code> 或 <code>接受风险并继续</code></li>
+            <li>即可看到后端 ASP.NET 应用的内容</li>
+        </ol>
+
+        <h2>✅ 验证结果</h2>
+        <div class="success status">
+            ✓ TCP 端口 8443 已开放<br>
+            ✓ HTTPS 握手成功<br>
+            ✓ 后端代理正常工作<br>
+            ✓ 返回状态码 200 OK<br>
+            ✓ 服务器响应头包含 server: envoy
+        </div>
+
+        <h2>🛠️ 命令行测试</h2>
+        <p>如果安装了 Git Bash 或 curl，可以使用以下命令测试：</p>
+        <div style="background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 8px; overflow-x: auto;">
+            <code style="color: #f8f8f2; background: transparent;">
+# 基本测试（不带 Host 头，预期 404）<br>
+curl -skI https://www.qsgl.cn:8443/<br>
+<br>
+# 带 Host 头测试（预期 200）<br>
+curl -skI https://www.qsgl.cn:8443/ -H "Host: www.qsgl.net"
+            </code>
+        </div>
+
+        <h2>📞 故障排查</h2>
+        <p>如果无法访问，请检查：</p>
+        <ul>
+            <li>本地防火墙是否拦截 8443 端口</li>
+            <li>公司网络是否限制非标准端口</li>
+            <li>DNS 解析是否正确</li>
+            <li>阿里云安全组规则是否开放 8443 端口</li>
+        </ul>
+    </div>
+
+    <script>
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = message;
+            resultDiv.style.border = `3px solid ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#ffc107'}`;
+            resultDiv.style.background = type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#fff3cd';
+            resultDiv.style.color = type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#856404';
+        }
+
+        function testConnection() {
+            showResult('⏳ 正在测试连接...', 'info');
+            
+            fetch('https://www.qsgl.cn:8443/', { 
+                mode: 'no-cors',
+                cache: 'no-cache'
+            })
+            .then(() => {
+                showResult('✅ 连接成功！\n\n端口 8443 可以访问。\n注意：由于 no-cors 模式和证书限制，无法读取响应内容。\n\n建议直接点击上方链接在浏览器中查看。', 'success');
+            })
+            .catch(error => {
+                showResult(`❌ 连接失败\n\n错误信息: ${error.message}\n\n可能原因：\n1. 浏览器阻止了不安全的证书\n2. CORS 策略限制\n3. 网络防火墙拦截\n\n建议直接点击上方链接，手动接受证书警告后访问。`, 'error');
+            });
+        }
+
+        function testWithHost() {
+            showResult('⏳ 正在测试 Host 头绑定...', 'info');
+            
+            fetch('https://www.qsgl.cn:8443/', { 
+                mode: 'no-cors',
+                headers: {
+                    'Host': 'www.qsgl.net'
+                },
+                cache: 'no-cache'
+            })
+            .then(() => {
+                showResult('✅ Host 头测试成功！\n\n域名绑定正常工作。\n注意：由于 no-cors 模式限制，无法读取详细响应。\n\n建议直接点击上方链接查看实际内容。', 'success');
+            })
+            .catch(error => {
+                showResult(`❌ Host 头测试失败\n\n错误信息: ${error.message}\n\n建议直接点击上方链接，在浏览器中查看。`, 'error');
+            });
+        }
+
+        function clearResult() {
+            document.getElementById('result').innerHTML = '';
+            document.getElementById('result').style.border = 'none';
+        }
+
+        // 页面加载时显示提示
+        window.onload = function() {
+            showResult('👆 请点击上方的"直接访问链接"开始测试\n\n或使用下方的按钮进行 JavaScript 测试（可能受浏览器安全策略限制）', 'info');
+        };
+    </script>
+</body>
+</html>

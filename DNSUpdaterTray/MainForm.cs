@@ -104,6 +104,10 @@ namespace DNSUpdaterTray
             settingsItem.Click += (s, e) => ShowSettings();
             trayMenu.Items.Add(settingsItem);
             
+            var diagnosticItem = new ToolStripMenuItem("网络诊断");
+            diagnosticItem.Click += async (s, e) => await RunDiagnostics();
+            trayMenu.Items.Add(diagnosticItem);
+            
             trayMenu.Items.Add(new ToolStripSeparator());
             
             var exitItem = new ToolStripMenuItem("退出");
@@ -151,46 +155,77 @@ namespace DNSUpdaterTray
                 lastStatus = "检查中...";
                 UpdateTrayTooltip();
                 
-                // 准备请求数据
-                var requestData = new
+                // 构建GET请求URL
+                var urlBuilder = new UriBuilder(dnsSettings.ApiUrl);
+                var query = new List<string>();
+                
+                if (!string.IsNullOrEmpty(dnsSettings.SubDomain))
                 {
-                    subDomain = dnsSettings.SubDomain,
-                    domain = dnsSettings.Domain,
-                    refreshTime = dnsSettings.UpdateInterval,
-                    enableDnsPod = dnsSettings.EnableUpdate
-                };
+                    query.Add($"subdomain={Uri.EscapeDataString(dnsSettings.SubDomain)}");
+                }
                 
-                var json = JsonSerializer.Serialize(requestData);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                if (!string.IsNullOrEmpty(dnsSettings.Domain))
+                {
+                    query.Add($"domain={Uri.EscapeDataString(dnsSettings.Domain)}");
+                }
                 
-                // 发送POST请求
-                var response = await httpClient.PostAsync(dnsSettings.ApiUrl, content);
+                query.Add("useProxy=false");
+                query.Add($"enableDnsUpdate={dnsSettings.EnableUpdate.ToString().ToLower()}");
+                
+                urlBuilder.Query = string.Join("&", query);
+                
+                // 发送GET请求
+                var response = await httpClient.GetAsync(urlBuilder.ToString());
                 
                 if (response.IsSuccessStatusCode)
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
-                    var result = JsonSerializer.Deserialize<JsonElement>(responseContent);
                     
-                    // 解析响应
-                    if (result.TryGetProperty("success", out var success) && success.GetBoolean())
+                    try
                     {
-                        if (result.TryGetProperty("clientIp", out var clientIp))
+                        var result = JsonSerializer.Deserialize<JsonElement>(responseContent);
+                        
+                        // 解析IP地址
+                        if (result.TryGetProperty("ip", out var ip))
+                        {
+                            currentIp = ip.GetString() ?? "未知";
+                        }
+                        else if (result.TryGetProperty("clientIp", out var clientIp))
                         {
                             currentIp = clientIp.GetString() ?? "未知";
                         }
                         
-                        lastStatus = "✅ 更新成功";
+                        // 检查是否成功
+                        if (result.TryGetProperty("success", out var success) && success.GetBoolean())
+                        {
+                            lastStatus = "✅ 更新成功";
+                        }
+                        else if (result.TryGetProperty("changed", out var changed))
+                        {
+                            // 有些API返回changed字段而不是success
+                            lastStatus = changed.GetBoolean() ? "✅ IP已更新" : "✅ IP无变化";
+                        }
+                        else
+                        {
+                            var message = result.TryGetProperty("msg", out var msg) ? msg.GetString() : 
+                                         result.TryGetProperty("message", out var message1) ? message1.GetString() : "未知错误";
+                            lastStatus = $"⚠️ {message}";
+                        }
+                        
                         lastUpdateTime = DateTime.Now.ToString("HH:mm:ss");
                     }
-                    else
+                    catch (JsonException)
                     {
-                        var message = result.TryGetProperty("message", out var msg) ? msg.GetString() : "未知错误";
-                        lastStatus = $"❌ 更新失败: {message}";
+                        // 如果不是JSON格式，可能是纯文本响应
+                        currentIp = responseContent.Contains(".") ? responseContent.Trim() : currentIp;
+                        lastStatus = "✅ 响应已收到";
+                        lastUpdateTime = DateTime.Now.ToString("HH:mm:ss");
                     }
                 }
                 else
                 {
-                    lastStatus = $"❌ HTTP错误: {response.StatusCode}";
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    lastStatus = $"❌ HTTP {(int)response.StatusCode}: {errorContent.Substring(0, Math.Min(50, errorContent.Length))}";
                 }
             }
             catch (Exception ex)
@@ -268,6 +303,73 @@ namespace DNSUpdaterTray
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"保存最后访问网页失败: {ex.Message}");
+            }
+        }
+
+        private async Task RunDiagnostics()
+        {
+            try
+            {
+                var result = await DiagnosticTool.RunDiagnostics(dnsSettings.ApiUrl);
+                
+                // 创建一个新窗口显示诊断结果
+                var diagForm = new Form
+                {
+                    Text = "网络诊断报告",
+                    Size = new Size(600, 500),
+                    StartPosition = FormStartPosition.CenterScreen,
+                    ShowIcon = false,
+                    MaximizeBox = false,
+                    MinimizeBox = false
+                };
+
+                var textBox = new TextBox
+                {
+                    Multiline = true,
+                    ReadOnly = true,
+                    ScrollBars = ScrollBars.Vertical,
+                    Dock = DockStyle.Fill,
+                    Text = result,
+                    Font = new Font("Consolas", 9)
+                };
+
+                var panel = new Panel
+                {
+                    Dock = DockStyle.Bottom,
+                    Height = 40
+                };
+
+                var copyButton = new Button
+                {
+                    Text = "复制到剪贴板",
+                    Size = new Size(120, 30),
+                    Location = new Point(10, 5)
+                };
+                copyButton.Click += (s, e) =>
+                {
+                    Clipboard.SetText(result);
+                    MessageBox.Show("诊断结果已复制到剪贴板", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                };
+
+                var closeButton = new Button
+                {
+                    Text = "关闭",
+                    Size = new Size(80, 30),
+                    Location = new Point(140, 5)
+                };
+                closeButton.Click += (s, e) => diagForm.Close();
+
+                panel.Controls.Add(copyButton);
+                panel.Controls.Add(closeButton);
+
+                diagForm.Controls.Add(textBox);
+                diagForm.Controls.Add(panel);
+
+                diagForm.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"运行诊断失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

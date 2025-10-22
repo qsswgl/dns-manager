@@ -1,0 +1,27 @@
+# Dockerfile for DNSApi with Let's Encrypt support
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+
+WORKDIR /app
+
+# 安装必要的工具
+RUN apt-get update && \
+    apt-get install -y bash openssl jq curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# 复制发布的应用
+COPY publish/ .
+
+# 创建脚本目录并复制脚本
+RUN mkdir -p /opt/scripts
+COPY scripts/request-letsencrypt-cert.sh /opt/scripts/
+RUN chmod +x /opt/scripts/request-letsencrypt-cert.sh
+
+# 暴露端口
+EXPOSE 5074 5075 8080 8443
+
+# 设置环境变量
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_URLS=http://+:5074;https://+:5075;http://+:8080;https://+:8443
+
+# 启动应用
+ENTRYPOINT ["dotnet", "DNSApi.dll"]

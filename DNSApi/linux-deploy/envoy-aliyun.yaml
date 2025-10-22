@@ -1,0 +1,198 @@
+admin:
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9901
+
+static_resources:
+  listeners:
+  # HTTP 80 → HTTPS 443 重定向
+  - name: http_redirect_80
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 80
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_http
+          codec_type: AUTO
+          route_config:
+            name: http_redirect
+            virtual_hosts:
+            - name: redirect_vhost
+              domains: ["qsgl.net", "*.qsgl.net"]
+              routes:
+              - match: { prefix: "/" }
+                redirect: { https_redirect: true }
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config: { "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router }
+
+  # HTTPS 443 终止TLS并反代到上游 61.163.200.245:443
+  - name: https_listener_443
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 443
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_https
+          codec_type: AUTO
+          route_config:
+            name: https_route
+            virtual_hosts:
+            - name: qsgl_backend
+              domains: ["qsgl.net", "*.qsgl.net", "qsgl.net:443", "*.qsgl.net:443"]
+              routes:
+              - match: { prefix: "/" }
+                route:
+                  cluster: qsgl_backend
+                  host_rewrite_literal: www.qsgl.net
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config: { "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router }
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          common_tls_context:
+            tls_certificates:
+            - certificate_chain: { filename: "/etc/envoy/certs/qsgl.net.crt" }
+              private_key:      { filename: "/etc/envoy/certs/qsgl.net.key" }
+
+  # HTTPS 99 终止TLS并反代到上游 61.163.200.245:99
+  - name: https_listener_99
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 99
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_https_99
+          codec_type: AUTO
+          route_config:
+            name: https_route_99
+            virtual_hosts:
+            - name: qsgl_backend_99
+              domains: ["www.qsgl.net", "www.qsgl.net:99", "qsgl.net:99", "*.qsgl.net:99"]
+              routes:
+              - match: { prefix: "/" }
+                route:
+                  cluster: qsgl_backend_99
+                  host_rewrite_literal: www.qsgl.net
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config: { "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router }
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          common_tls_context:
+            tls_certificates:
+            - certificate_chain: { filename: "/etc/envoy/certs/qsgl.net.crt" }
+              private_key:      { filename: "/etc/envoy/certs/qsgl.net.key" }
+
+  # HTTPS 5002 终止TLS并反代到上游 61.163.200.245:5002
+  - name: https_listener_5002
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 5002
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_https_5002
+          codec_type: AUTO
+          route_config:
+            name: https_route_5002
+            virtual_hosts:
+            - name: qsgl_backend_5002
+              domains: ["www.qsgl.net", "www.qsgl.net:5002", "qsgl.net:5002", "*.qsgl.net:5002"]
+              routes:
+              - match: { prefix: "/" }
+                route:
+                  cluster: qsgl_backend_5002
+                  host_rewrite_literal: www.qsgl.net
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config: { "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router }
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          common_tls_context:
+            tls_certificates:
+            - certificate_chain: { filename: "/etc/envoy/certs/qsgl.net.crt" }
+              private_key:      { filename: "/etc/envoy/certs/qsgl.net.key" }
+
+  clusters:
+  - name: qsgl_backend
+    connect_timeout: 30s
+    type: LOGICAL_DNS
+    dns_lookup_family: V4_ONLY
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: qsgl_backend
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 61.163.200.245
+                port_value: 443
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+        sni: www.qsgl.net
+
+  - name: qsgl_backend_5002
+    connect_timeout: 30s
+    type: LOGICAL_DNS
+    dns_lookup_family: V4_ONLY
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: qsgl_backend_5002
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 61.163.200.245
+                port_value: 5002
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+        sni: www.qsgl.net
+
+  - name: qsgl_backend_99
+    connect_timeout: 30s
+    type: LOGICAL_DNS
+    dns_lookup_family: V4_ONLY
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: qsgl_backend_99
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 61.163.200.245
+                port_value: 99
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+        sni: www.qsgl.net
