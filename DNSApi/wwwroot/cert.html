@@ -11,7 +11,7 @@
         }
         
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
             padding: 30px;
@@ -110,6 +110,14 @@
             cursor: not-allowed;
         }
         
+        .btn-success {
+            background-color: #28a745;
+        }
+        
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        
         .log-area {
             background: #212529;
             color: #28a745;
@@ -118,6 +126,7 @@
             font-family: 'Courier New', monospace;
             font-size: 13px;
             min-height: 100px;
+            max-height: 300px;
             overflow-y: auto;
             white-space: pre-wrap;
         }
@@ -133,6 +142,55 @@
         .info-box h4 {
             color: #0c5460;
             margin-top: 0;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .success-box.active {
+            display: block;
+        }
+        
+        .success-box h4 {
+            color: #155724;
+            margin-top: 0;
+        }
+        
+        .download-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 15px;
+            background: #007cba;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .download-btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .download-btn::before {
+            content: '📥 ';
+            margin-right: 5px;
         }
         
         .provider-config {
@@ -153,14 +211,65 @@
             gap: 15px;
         }
         
+        .key-type-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        .key-type-option {
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .key-type-option:hover {
+            border-color: #007cba;
+            background: #f0f8ff;
+        }
+        
+        .key-type-option.selected {
+            border-color: #007cba;
+            background: #007cba;
+            color: white;
+        }
+        
+        .key-type-option input[type="radio"] {
+            display: none;
+        }
+        
+        .key-type-option .key-name {
+            font-weight: bold;
+            font-size: 16px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .key-type-option .key-desc {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .key-type-option.selected .key-desc {
+            color: rgba(255,255,255,0.9);
+        }
+        
         @media (max-width: 600px) {
-            .two-column {
+            .two-column, .key-type-options {
                 grid-template-columns: 1fr;
             }
             
             .container {
                 margin: 20px;
                 padding: 20px;
+            }
+            
+            .download-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -170,7 +279,7 @@
     <div class="container">
         <div class="header">
             <h1>🔒 SSL证书管理</h1>
-            <p>自动申请和部署 Let's Encrypt 免费SSL证书</p>
+            <p>自动申请和生成 SSL 证书，支持多种密钥算法和格式</p>
         </div>
         
         <div class="nav-links">
@@ -180,104 +289,115 @@
         </div>
 
         <div class="info-box">
-            <h4>📋 使用说明</h4>
+            <h4>📋 功能特性</h4>
             <ul>
-                <li><strong>一级域名</strong> (如 qsgl.net) → 自动申请泛域名证书 <code>*.qsgl.net</code></li>
-                <li><strong>子域名</strong> (如 api.qsgl.net) → 申请单域名证书</li>
-                <li>支持 DNSPod、阿里云DNS、Cloudflare 等域名服务商</li>
-                <li>证书申请完成后会自动下载并保存到服务器</li>
+                <li><strong>密钥算法</strong>：支持 RSA 2048 和 ECDSA P-256 两种算法</li>
+                <li><strong>证书格式</strong>：自动生成 PEM、KEY、CRT、PFX 等所有常用格式</li>
+                <li><strong>一键下载</strong>：证书生成后提供所有格式的下载链接</li>
+                <li><strong>域名支持</strong>：支持 Let's Encrypt 免费证书和自签名证书</li>
             </ul>
         </div>
 
         <div class="form-section">
-            <h3>🎯 证书申请</h3>
+            <h3>🎯 证书配置</h3>
             
             <div class="form-group">
                 <label>证书域名：</label>
-                <input id="certDomain" type="text" placeholder="例如：qsgl.net 或 api.qsgl.net">
-                <small style="color: #6c757d;">输入一级域名将申请泛域名证书</small>
+                <input id="certDomain" type="text" placeholder="例如：*.qsgl.net 或 api.qsgl.net" value="*.qsgl.net">
+                <small style="color: #6c757d;">支持通配符域名和普通域名</small>
             </div>
             
             <div class="form-group">
-                <label>域名服务商：</label>
-                <select id="provider">
-                    <option value="DNSPOD">DNSPod (腾讯云)</option>
-                    <option value="ALIYUN">阿里云 DNS</option>
-                    <option value="CLOUDFLARE">Cloudflare</option>
+                <label>密钥算法：</label>
+                <div class="key-type-options">
+                    <label class="key-type-option selected">
+                        <input type="radio" name="keyType" value="RSA2048" checked>
+                        <span class="key-name">🔐 RSA 2048</span>
+                        <span class="key-desc">兼容性最好，通用标准</span>
+                    </label>
+                    <label class="key-type-option">
+                        <input type="radio" name="keyType" value="ECDSA256">
+                        <span class="key-name">⚡ ECDSA P-256</span>
+                        <span class="key-desc">性能更优，密钥更小</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>证书类型：</label>
+                <select id="certType">
+                    <option value="letsencrypt">Let's Encrypt 免费证书</option>
+                    <option value="selfsigned" selected>自签名证书（测试用）</option>
                 </select>
             </div>
 
-            <!-- DNSPod 配置 -->
-            <div id="config-DNSPOD" class="provider-config active">
-                <h4>🔧 DNSPod API 配置</h4>
-                <div class="info-box" style="background: #d4edda; border-color: #c3e6cb;">
-                    <p style="margin: 0; color: #155724;">
-                        ✅ <strong>DNSPod API 配置已预设</strong><br>
-                        系统将自动使用服务器配置文件中的 DNSPod API 密钥，无需手动输入。
-                    </p>
-                </div>
-            </div>
-
-            <!-- 阿里云 配置 -->
-            <div id="config-ALIYUN" class="provider-config">
-                <h4>🔧 阿里云 DNS API 配置</h4>
-                <div class="two-column">
-                    <div class="form-group">
-                        <label>Access Key ID：</label>
-                        <input id="aliyun-keyid" type="text" placeholder="阿里云 Access Key ID">
-                    </div>
-                    <div class="form-group">
-                        <label>Access Key Secret：</label>
-                        <input id="aliyun-secret" type="password" placeholder="阿里云 Access Key Secret">
-                    </div>
-                </div>
-                <small style="color: #6c757d;">
-                    在阿里云控制台 → AccessKey 管理中获取，建议使用RAM子账号
-                </small>
-            </div>
-
-            <!-- Cloudflare 配置 -->
-            <div id="config-CLOUDFLARE" class="provider-config">
-                <h4>🔧 Cloudflare API 配置</h4>
+            <!-- Let's Encrypt 配置 -->
+            <div id="letsencrypt-config" style="display: none;">
                 <div class="form-group">
-                    <label>认证方式：</label>
-                    <select id="cf-auth-type">
-                        <option value="token">API Token (推荐)</option>
-                        <option value="key">Global API Key</option>
+                    <label>域名服务商：</label>
+                    <select id="provider">
+                        <option value="DNSPOD">DNSPod (腾讯云)</option>
+                        <option value="ALIYUN">阿里云 DNS</option>
+                        <option value="CLOUDFLARE">Cloudflare</option>
                     </select>
                 </div>
-                
-                <div id="cf-token-config">
+
+                <!-- DNSPod 配置 -->
+                <div id="config-DNSPOD" class="provider-config active">
+                    <div class="info-box" style="background: #d4edda; border-color: #c3e6cb;">
+                        <p style="margin: 0; color: #155724;">
+                            ✅ <strong>DNSPod API 配置已预设</strong><br>
+                            系统将自动使用服务器配置文件中的 DNSPod API 密钥。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 阿里云 配置 -->
+                <div id="config-ALIYUN" class="provider-config">
+                    <h4>🔧 阿里云 DNS API 配置</h4>
+                    <div class="two-column">
+                        <div class="form-group">
+                            <label>Access Key ID：</label>
+                            <input id="aliyun-keyid" type="text" placeholder="阿里云 Access Key ID">
+                        </div>
+                        <div class="form-group">
+                            <label>Access Key Secret：</label>
+                            <input id="aliyun-secret" type="password" placeholder="阿里云 Access Key Secret">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cloudflare 配置 -->
+                <div id="config-CLOUDFLARE" class="provider-config">
+                    <h4>🔧 Cloudflare API 配置</h4>
                     <div class="form-group">
                         <label>API Token：</label>
                         <input id="cf-token" type="password" placeholder="Cloudflare API Token">
                         <small style="color: #6c757d;">
-                            在 Cloudflare → My Profile → API Tokens 中创建，需要 Zone:Zone:Read, Zone:DNS:Edit 权限
+                            需要 Zone:Zone:Read 和 Zone:DNS:Edit 权限
                         </small>
                     </div>
                 </div>
-                
-                <div id="cf-key-config" style="display: none;">
-                    <div class="two-column">
-                        <div class="form-group">
-                            <label>邮箱地址：</label>
-                            <input id="cf-email" type="text" placeholder="Cloudflare 账号邮箱">
-                        </div>
-                        <div class="form-group">
-                            <label>Global API Key：</label>
-                            <input id="cf-key" type="password" placeholder="Cloudflare Global API Key">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>账号 ID (可选)：</label>
-                    <input id="cf-account-id" type="text" placeholder="Cloudflare 账号 ID">
-                    <small style="color: #6c757d;">在 Cloudflare 右侧边栏中查看</small>
-                </div>
             </div>
 
-            <button id="applyCertBtn" class="btn">🚀 申请证书</button>
+            <div class="form-group">
+                <label>PFX 密码（可选）：</label>
+                <input id="pfxPassword" type="password" placeholder="留空则使用默认密码" value="qsgl2024">
+                <small style="color: #6c757d;">用于加密 PFX 文件，建议设置强密码</small>
+            </div>
+
+            <button id="generateCertBtn" class="btn">🚀 生成证书</button>
+        </div>
+
+        <!-- 成功结果区域 -->
+        <div id="successBox" class="success-box">
+            <h4>✅ 证书生成成功！</h4>
+            <p><strong>证书信息：</strong></p>
+            <div id="certInfo" style="font-family: monospace; background: #fff; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+            </div>
+            <p><strong>📥 下载证书：</strong></p>
+            <div id="downloadLinks" style="text-align: center;">
+            </div>
         </div>
 
         <div class="form-section">
@@ -287,45 +407,29 @@
     </div>
 
     <script>
-        // 从地址栏获取 domain 参数
-        (function initFromQuery() {
-            const params = new URLSearchParams(location.search);
-            const qDomain = (params.get('domain') || 'qsgl.net').trim();
-            const certDomainInput = document.getElementById('certDomain');
-            if (!certDomainInput.value) certDomainInput.value = qDomain;
-        })();
+        // 密钥类型选择
+        document.querySelectorAll('.key-type-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.key-type-option').forEach(o => o.classList.remove('selected'));
+                this.classList.add('selected');
+                this.querySelector('input[type="radio"]').checked = true;
+            });
+        });
 
-        // 判断是否为一级域名
-        function isApexDomain(d) {
-            if (!d) return false;
-            const s = d.trim().toLowerCase();
-            if (s.startsWith('.') || s.endsWith('.')) return false;
-            const first = s.indexOf('.');
-            const last = s.lastIndexOf('.');
-            return first > 0 && first === last && last < s.length - 1;
-        }
+        // 证书类型切换
+        document.getElementById('certType').addEventListener('change', function() {
+            const letsencryptConfig = document.getElementById('letsencrypt-config');
+            if (this.value === 'letsencrypt') {
+                letsencryptConfig.style.display = 'block';
+            } else {
+                letsencryptConfig.style.display = 'none';
+            }
+        });
 
         // 服务商切换
         document.getElementById('provider').addEventListener('change', function() {
-            // 隐藏所有配置区域
             document.querySelectorAll('.provider-config').forEach(el => el.classList.remove('active'));
-            // 显示选中的配置区域
-            const selected = this.value;
-            document.getElementById('config-' + selected).classList.add('active');
-        });
-
-        // Cloudflare 认证方式切换
-        document.getElementById('cf-auth-type').addEventListener('change', function() {
-            const tokenConfig = document.getElementById('cf-token-config');
-            const keyConfig = document.getElementById('cf-key-config');
-            
-            if (this.value === 'token') {
-                tokenConfig.style.display = 'block';
-                keyConfig.style.display = 'none';
-            } else {
-                tokenConfig.style.display = 'none';
-                keyConfig.style.display = 'block';
-            }
+            document.getElementById('config-' + this.value).classList.add('active');
         });
 
         // 添加日志
@@ -340,15 +444,16 @@
                 logArea.textContent += logEntry;
             }
             
-            // 滚动到底部
             logArea.scrollTop = logArea.scrollHeight;
         }
 
-        // 证书申请
-        document.getElementById('applyCertBtn').onclick = function() {
+        // 生成证书
+        document.getElementById('generateCertBtn').onclick = async function() {
             const btn = this;
             const domain = document.getElementById('certDomain').value.trim();
-            const provider = document.getElementById('provider').value;
+            const keyType = document.querySelector('input[name="keyType"]:checked').value;
+            const certType = document.getElementById('certType').value;
+            const pfxPassword = document.getElementById('pfxPassword').value || 'qsgl2024';
             
             if (!domain) {
                 alert('请输入证书域名');
@@ -357,96 +462,141 @@
 
             // 禁用按钮
             btn.disabled = true;
-            btn.textContent = '🔄 申请中...';
+            btn.textContent = '🔄 生成中...';
             
-            // 清空日志
+            // 清空日志和结果
             document.getElementById('certLog').textContent = '';
+            document.getElementById('successBox').classList.remove('active');
             
-            addLog(`开始申请证书: ${domain}`);
-            addLog(`域名服务商: ${provider}`);
+            addLog(`开始生成证书...`);
+            addLog(`域名: ${domain}`);
+            addLog(`密钥算法: ${keyType}`);
+            addLog(`证书类型: ${certType === 'letsencrypt' ? 'Let\'s Encrypt' : '自签名'}`);
             
-            const wantWildcard = isApexDomain(domain);
-            if (wantWildcard) {
-                addLog(`检测到一级域名，将申请泛域名证书: *.${domain}`);
-            } else {
-                addLog(`检测到子域名，将申请单域名证书: ${domain}`);
-            }
-
-            // 构建请求体
-            const body = { domain: domain, provider: provider };
-
-            // 根据服务商添加认证信息
-            if (provider === 'DNSPOD') {
-                // DNSPod 使用服务器配置文件中的预设值，无需传递参数
-                addLog('使用服务器预设的 DNSPod API 配置');
-            } else if (provider === 'ALIYUN') {
-                body.apiKeyId = document.getElementById('aliyun-keyid').value.trim();
-                body.apiKeySecret = document.getElementById('aliyun-secret').value.trim();
+            try {
+                let result;
                 
-                if (!body.apiKeyId || !body.apiKeySecret) {
-                    addLog('❌ 错误: 请填写阿里云 Access Key ID 和 Secret', 'error');
-                    btn.disabled = false;
-                    btn.textContent = '🚀 申请证书';
-                    return;
-                }
-            } else if (provider === 'CLOUDFLARE') {
-                const authType = document.getElementById('cf-auth-type').value;
-                const cfAccountId = document.getElementById('cf-account-id').value.trim();
-                
-                if (authType === 'token') {
-                    body.apiKeySecret = document.getElementById('cf-token').value.trim();
-                    if (!body.apiKeySecret) {
-                        addLog('❌ 错误: 请填写 Cloudflare API Token', 'error');
-                        btn.disabled = false;
-                        btn.textContent = '🚀 申请证书';
-                        return;
+                if (certType === 'letsencrypt') {
+                    // Let's Encrypt 证书
+                    const provider = document.getElementById('provider').value;
+                    addLog(`域名服务商: ${provider}`);
+                    
+                    const body = { 
+                        domain: domain, 
+                        provider: provider,
+                        certType: keyType,
+                        exportFormat: 'BOTH',
+                        pfxPassword: pfxPassword
+                    };
+
+                    // 根据服务商添加认证信息
+                    if (provider === 'ALIYUN') {
+                        body.apiKeyId = document.getElementById('aliyun-keyid').value.trim();
+                        body.apiKeySecret = document.getElementById('aliyun-secret').value.trim();
+                        
+                        if (!body.apiKeyId || !body.apiKeySecret) {
+                            throw new Error('请填写阿里云 Access Key ID 和 Secret');
+                        }
+                    } else if (provider === 'CLOUDFLARE') {
+                        body.apiKeySecret = document.getElementById('cf-token').value.trim();
+                        if (!body.apiKeySecret) {
+                            throw new Error('请填写 Cloudflare API Token');
+                        }
                     }
+
+                    addLog('📤 发送 Let\'s Encrypt 申请请求...');
+                    const response = await fetch('/api/request-cert', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    
+                    result = await response.json();
+                    
                 } else {
-                    body.apiKeyId = document.getElementById('cf-email').value.trim();
-                    body.apiKeySecret = document.getElementById('cf-key').value.trim();
-                    if (!body.apiKeyId || !body.apiKeySecret) {
-                        addLog('❌ 错误: 请填写 Cloudflare 邮箱和 Global API Key', 'error');
-                        btn.disabled = false;
-                        btn.textContent = '🚀 申请证书';
-                        return;
-                    }
+                    // 自签名证书
+                    addLog('📤 发送自签名证书生成请求...');
+                    const response = await fetch('/api/cert/v2/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            domain: domain,
+                            certType: keyType,
+                            exportFormat: 'BOTH',
+                            pfxPassword: pfxPassword
+                        })
+                    });
+                    
+                    result = await response.json();
+                }
+
+                if (result.success) {
+                    addLog(`✅ 证书生成成功!`);
+                    addLog(`📋 证书域名: ${domain}`);
+                    addLog(`🔐 密钥算法: ${keyType}`);
+                    
+                    // 显示证书信息
+                    const certInfo = document.getElementById('certInfo');
+                    certInfo.innerHTML = `
+                        <strong>域名:</strong> ${domain}<br>
+                        <strong>算法:</strong> ${keyType}<br>
+                        <strong>格式:</strong> PEM + PFX<br>
+                        ${result.message ? `<strong>说明:</strong> ${result.message}<br>` : ''}
+                    `;
+
+                    // 生成下载链接 - 改为 ZIP 打包下载
+                    const downloadLinks = document.getElementById('downloadLinks');
+                    downloadLinks.innerHTML = '';
+                    
+                    // 创建 ZIP 下载按钮
+                    const zipLink = document.createElement('a');
+                    zipLink.href = `/api/cert/download-zip?domain=${encodeURIComponent(domain)}`;
+                    zipLink.className = 'download-btn';
+                    zipLink.style.fontSize = '16px';
+                    zipLink.style.padding = '15px 30px';
+                    zipLink.style.background = '#28a745';
+                    zipLink.textContent = '📦 下载证书压缩包（包含所有格式）';
+                    zipLink.download = `${domain.replace('*.', 'wildcard.')}-certificates.zip`;
+                    downloadLinks.appendChild(zipLink);
+                    
+                    // 添加说明
+                    const note = document.createElement('p');
+                    note.style.marginTop = '15px';
+                    note.style.color = '#6c757d';
+                    note.style.fontSize = '14px';
+                    note.innerHTML = `
+                        <strong>📦 压缩包内容：</strong><br>
+                        • ${domain.replace('*.', 'wildcard.')}.crt - PEM 证书<br>
+                        • ${domain.replace('*.', 'wildcard.')}.key - PEM 私钥<br>
+                        • ${domain.replace('*.', 'wildcard.')}.fullchain.crt - 完整证书链<br>
+                        • ${domain.replace('*.', 'wildcard.')}.pfx - PKCS#12 证书包
+                    `;
+                    downloadLinks.appendChild(note);
+                    
+                    // 显示成功区域
+                    document.getElementById('successBox').classList.add('active');
+                    
+                } else {
+                    addLog(`❌ 证书生成失败: ${result.message || '未知错误'}`, 'error');
                 }
                 
-                if (cfAccountId) {
-                    body.cfAccountId = cfAccountId;
-                }
-            }
-
-            addLog('📤 发送申请请求...');
-
-            // 发送请求
-            fetch('/api/request-cert', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            })
-            .then(response => response.json())
-            .then(res => {
-                const subject = res.subject || (wantWildcard ? `*.${domain}` : domain);
-                
-                if (res.success || res.msg.includes('成功')) {
-                    addLog(`✅ 证书申请成功!`);
-                    addLog(`📋 证书主题: ${subject}`);
-                    addLog(`📝 详细信息: ${res.msg}`);
-                } else {
-                    addLog(`❌ 证书申请失败: ${res.msg}`, 'error');
-                }
-            })
-            .catch(err => {
+            } catch (err) {
                 addLog(`💥 请求异常: ${err.message}`, 'error');
-            })
-            .finally(() => {
-                // 恢复按钮
+            } finally {
                 btn.disabled = false;
-                btn.textContent = '🚀 申请证书';
+                btn.textContent = '🚀 生成证书';
                 addLog('--- 操作完成 ---');
-            });
+            }
         };
+
+        // 初始化
+        (function init() {
+            const params = new URLSearchParams(location.search);
+            const qDomain = params.get('domain');
+            if (qDomain) {
+                document.getElementById('certDomain').value = qDomain.trim();
+            }
+        })();
     </script>
 </body>
 </html>
