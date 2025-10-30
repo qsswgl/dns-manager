@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>证书申请 API 测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input[type="text"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .response-box {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            display: none;
+        }
+
+        .response-box.success {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+
+        .response-box.error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+
+        .response-box.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .response-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .response-content {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h3 {
+            color: #1976D2;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .info-box li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 证书申请 API 测试</h1>
+        <p class="subtitle">测试 /api/request-cert 端点</p>
+
+        <div class="info-box">
+            <h3>📌 说明：</h3>
+            <ul>
+                <li>此页面用于测试 <strong>POST /api/request-cert</strong> 端点</li>
+                <li>该端点目前返回模拟响应（TODO: 集成实际证书生成服务）</li>
+                <li>生产环境请使用 <strong>/api/cert/v2/generate</strong> 端点生成真实证书</li>
+            </ul>
+        </div>
+
+        <form id="certForm">
+            <div class="form-group">
+                <label for="domain">域名 *</label>
+                <input type="text" id="domain" name="domain" placeholder="example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="provider">DNS 服务商 *</label>
+                <select id="provider" name="provider" required>
+                    <option value="DNSPOD">DNSPod（腾讯云）</option>
+                    <option value="CLOUDFLARE">Cloudflare</option>
+                    <option value="ALIYUN">阿里云</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="certType">证书类型 *</label>
+                <select id="certType" name="certType" required>
+                    <option value="RSA2048">RSA 2048</option>
+                    <option value="ECDSA256">ECDSA P-256</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="exportFormat">导出格式 *</label>
+                <select id="exportFormat" name="exportFormat" required>
+                    <option value="PEM">PEM（Linux/Nginx）</option>
+                    <option value="PFX">PFX（Windows/IIS）</option>
+                    <option value="BOTH">两者都要</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="apiKeyId">API Key ID（可选）</label>
+                <input type="text" id="apiKeyId" name="apiKeyId" placeholder="留空使用服务器配置">
+            </div>
+
+            <div class="form-group">
+                <label for="apiKeySecret">API Key Secret（可选）</label>
+                <input type="text" id="apiKeySecret" name="apiKeySecret" placeholder="留空使用服务器配置">
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn-primary" id="submitBtn">
+                    <span id="btnText">🚀 发送请求</span>
+                </button>
+                <button type="button" class="btn-secondary" onclick="clearResponse()">
+                    🗑️ 清空结果
+                </button>
+            </div>
+        </form>
+
+        <div id="responseBox" class="response-box">
+            <div class="response-title" id="responseTitle"></div>
+            <div class="response-content" id="responseContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('certForm');
+        const responseBox = document.getElementById('responseBox');
+        const responseTitle = document.getElementById('responseTitle');
+        const responseContent = document.getElementById('responseContent');
+        const submitBtn = document.getElementById('submitBtn');
+        const btnText = document.getElementById('btnText');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // 禁用按钮
+            submitBtn.disabled = true;
+            btnText.innerHTML = '<span class="loading"></span>请求中...';
+
+            // 构建请求体
+            const formData = new FormData(form);
+            const data = {
+                domain: formData.get('domain'),
+                provider: formData.get('provider'),
+                certType: formData.get('certType'),
+                exportFormat: formData.get('exportFormat'),
+                apiKeyId: formData.get('apiKeyId') || undefined,
+                apiKeySecret: formData.get('apiKeySecret') || undefined
+            };
+
+            try {
+                const response = await fetch('/api/request-cert', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                // 显示响应
+                responseBox.classList.remove('success', 'error');
+                responseBox.classList.add('show');
+                
+                if (result.success) {
+                    responseBox.classList.add('success');
+                    responseTitle.textContent = '✅ 请求成功';
+                } else {
+                    responseBox.classList.add('error');
+                    responseTitle.textContent = '❌ 请求失败';
+                }
+
+                responseContent.textContent = JSON.stringify(result, null, 2);
+
+            } catch (error) {
+                responseBox.classList.remove('success');
+                responseBox.classList.add('error', 'show');
+                responseTitle.textContent = '❌ 网络错误';
+                responseContent.textContent = `错误信息: ${error.message}`;
+            } finally {
+                // 恢复按钮
+                submitBtn.disabled = false;
+                btnText.textContent = '🚀 发送请求';
+            }
+        });
+
+        function clearResponse() {
+            responseBox.classList.remove('show');
+            setTimeout(() => {
+                responseContent.textContent = '';
+                responseTitle.textContent = '';
+            }, 300);
+        }
+    </script>
+</body>
+</html>
