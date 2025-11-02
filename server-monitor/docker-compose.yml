@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  dnsapi:
+    image: 43.138.35.183:5000/dnsapi:cert-manager-v3
+    container_name: dnsapi
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "5074:5074"  # HTTP
+      - "5075:5075"  # HTTPS
+    
+    # 卷挂载
+    volumes:
+      - /opt/shared-certs:/opt/shared-certs:ro
+      - /etc/hosts:/etc/hosts:ro
+    
+    # 健康检查配置
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5074/api/health"]
+      interval: 30s        # 每 30 秒检查一次
+      timeout: 5s          # 超时时间 5 秒
+      retries: 3           # 失败 3 次后标记为 unhealthy
+      start_period: 15s    # 启动后 15 秒才开始检查
+    
+    # 环境变量
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5074;https://+:5075
+    
+    # 资源限制（可选）
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # 网络配置
+    networks:
+      - dnsapi-network
+
+networks:
+  dnsapi-network:
+    driver: bridge

@@ -1,22 +1,30 @@
-# 证书管理服务 Dockerfile
+# 多阶段构建 Dockerfile - 支持 Let's Encrypt 自动申请
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY *.csproj .
+RUN dotnet restore
+COPY . .
+RUN dotnet publish -c Docker -o /app/publish
+
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
-
-# 安装必要的工具（acme.sh 需要）
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
+
+# 安装 curl 和 ca-certificates（Let's Encrypt / acme.sh 必需）
+RUN apt-get update && \
+    apt-get install -y curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# 创建证书目录
+RUN mkdir -p /app/certificates
+
+# 从构建阶段复制发布的应用
+COPY --from=build /app/publish .
 
 # 暴露端口
 EXPOSE 5074 5075
 
-# 复制发布的应用
-COPY publish/ .
-
 # 设置环境变量
 ENV ASPNETCORE_ENVIRONMENT=Production
-ENV ASPNETCORE_URLS=http://+:5074
-ENV ASPNETCORE_HTTP_PORTS=
-ENV ASPNETCORE_HTTPS_PORTS=
 
 # 启动应用
 ENTRYPOINT ["dotnet", "DNSApi.dll"]

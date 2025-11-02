@@ -1,0 +1,48 @@
+CONNECTED(00000003)
+---
+Certificate chain
+ 0 s:CN = *.qsgl.net
+   i:CN = *.qsgl.net
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Oct 28 14:47:12 2025 GMT; NotAfter: Jan 31 14:47:12 2028 GMT
+-----BEGIN CERTIFICATE-----
+MIIDHDCCAgSgAwIBAgIUe79qx8aQHSbRw9ubnhR2Yl1n9f8wDQYJKoZIhvcNAQEL
+BQAwFTETMBEGA1UEAwwKKi5xc2dsLm5ldDAeFw0yNTEwMjgxNDQ3MTJaFw0yODAx
+MzExNDQ3MTJaMBUxEzARBgNVBAMMCioucXNnbC5uZXQwggEiMA0GCSqGSIb3DQEB
+AQUAA4IBDwAwggEKAoIBAQCN0xtOLpNl9RbNYfp5wfDXX5YuyiLH8vBWxjRbdG+I
+dfYH6YEFsCEQe6FmbETIwuFZkyIvuJ/NOEoaLYs4ooGDemlL+/lJePHVpRVNFuoj
+lqjTuK7gRHLdKQcdv8PaxULH6n09Z/xfcKWkOW1awxn4SRTXr83pek4vgpybOXQk
+GAMVHxbhwi58UC8WsWBDPtKql0Qgm3QIY7/u9Oo+hc3hd4mLOjrWainqA4PLdoGl
+stRnwjgeHpEMLYFRhYDUH1lRMvuNuVcMVr5GbPUT5Cr2RrZtVaMBLopZyNTYEONT
+6NpB4826Fa9c+jkOEaNJhCMWG/C/lFW4EVbeWK3JitPzAgMBAAGjZDBiMAsGA1Ud
+DwQEAwIEMDATBgNVHSUEDDAKBggrBgEFBQcDATAfBgNVHREEGDAWgghxc2dsLm5l
+dIIKKi5xc2dsLm5ldDAdBgNVHQ4EFgQUCDEdk21Fv9mhYFvUOiqCiV/a9wMwDQYJ
+KoZIhvcNAQELBQADggEBAEF+BzR5jTxYtSgDK5+6Hucdo+CA6KJkpwYDQW5WU/om
+xcuHE2zVxPidhKs5J5lDhZLEgegjIiYS56V0C/wImxmfxETFiST475dJClRwo4fy
+nQzn9pt1qoYmDzwHKHkn2L+X9D+pua+KSBGQ19isW+NT/EMN4KpGQmR4eBosmZJg
+rssPKT45Ntk+Ytq2RqgTSNCSYxvwCa9NTt5vfEfE9N5H/mEwo47+S3PrWg7o4+cu
+Owz6hmrsAEH5iAWh1jewdTnaibbDpuQD0xdPchGV+J4VyuXvHdpmKmKeSA2Brqi8
+XtnzqQF7CS5d0yiVvJl7LzGs32lH0X3ai9FMRnsSIFs=
+-----END CERTIFICATE-----
+---
+Server certificate
+subject=CN = *.qsgl.net
+issuer=CN = *.qsgl.net
+---
+No client certificate CA names sent
+Peer signing digest: SHA256
+Peer signature type: RSA-PSS
+Server Temp Key: X25519, 253 bits
+---
+SSL handshake has read 1356 bytes and written 393 bytes
+Verification error: self-signed certificate
+---
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Server public key is 2048 bit
+Secure Renegotiation IS NOT supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+Early data was not sent
+Verify return code: 18 (self-signed certificate)
+---
